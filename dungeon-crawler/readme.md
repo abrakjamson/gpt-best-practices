@@ -2,7 +2,7 @@ This dungeon crawler example is the most complicated ruleset I've seen a GPT con
 * Markdown in instructions
 * Accessing structured data from JSON
 * Generating images along a theme
-* COde Interpreter for simple calculations.
+* Code Interpreter for simple calculations.
 
 It's been through a few dozen iterations and play tests to find what works best. You can play it yourself at [Dungeon Quests Infinity](https://chat.openai.com/g/g-SpdPEgRjs-dungeon-quests-infinity-v0-2-0)
 

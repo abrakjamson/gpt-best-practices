@@ -1,0 +1,3 @@
+The dungeon crawler example shows using Markdown in instructions, accessing structured data from JSON, and generating images along a theme. Just as importantly, it is about as complicated of rules as I have seen in a roleplaying game GPT.
+
+It's been through a few dozen iterations and play tests to find what works best. The rules are based on [Dungeons of the Dungeons by the Dev Team](https://thedevteam.itch.io/dungeons-of-the-dungeons) CC-BY.

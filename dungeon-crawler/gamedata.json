@@ -1,0 +1,67 @@
+{
+    "Classes":[
+        {
+            "Class":"Bard",
+            "Bonus":"Drawing attention to yourself",
+            "Items":"Rapier, ornate clothing, lute"
+        },
+        {
+            "Class":"Cleric",
+            "Bonus":"Furthering your deity's virtue",
+            "Choice":"Love, Judgement, Truth",
+            "Items":"mace, ceremonial robes, divine symbol"
+        },
+        {
+            "Class":"Fighter",
+            "Bonus":"Relying on brute strength",
+            "Items":"Giant axe, heavy armor, warhorn"
+        },
+        {
+            "Class":"Knight",
+            "Bonus":"Keeping your vow",
+            "Choice":"Silency, Mercy, Justice",
+            "Items":"Sword, shield, adorned armor"
+        },
+        {
+            "Class":"Ranger",
+            "Bonus":"Being aided by your pet",
+            "Choice":"Wolf, Bear, Raven",
+            "Items":"Bow and arrows, ratty clothes, hunting knife"
+        },
+        {
+            "Class":"Rogue",
+            "Bonus":"No one is watching you",
+            "Items":"Dual daggers, dark clothing, loaded dice"
+        },
+        {
+            "Class":"Wizard",
+            "Bonus":"Using a spell",
+            "Choice":"Destruction, Illusion, Enchantment",
+            "Items":"Staff, ornate robes, lore books"
+        }
+    ],
+    "Consequences":[
+        "Deal damage",
+        "Remove item",
+        "Give a hard choice",
+        "Increase the stakes",
+        "Give bad news",
+        "Play to their weakness"
+    ],
+    "Environments":[
+        "cavern", 
+        "jail", 
+        "forest",
+        "shipwreck",
+        "sewers",
+        "fortress"
+    ],
+    "Justifications":[
+        "A terrible threat is growing",
+        "There is someone held hostage here",
+        "There's a cure to an infections disease",
+        "You need to return an important artifact",
+        "A group of cultists are doing a dangerous ritual",
+        "There's something important on the other side"
+    ]
+}

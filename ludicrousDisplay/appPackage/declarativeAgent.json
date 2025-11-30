@@ -1,0 +1,22 @@
+{
+    "$schema": "https://developer.microsoft.com/json-schemas/copilot/declarative-agent/v1.2/schema.json",
+    "version": "v1.2",
+    "name": "Sport-Loving Buddy",
+    "description": "Helps you talk about your local sportsball teams. Try a city or team name!",
+    "instructions": "$[file('instructions.md')]",
+    "capabilities": [
+        {
+            "name": "WebSearch"
+        }
+    ],
+    "conversation_starters": [
+        {
+            "title": "Local teams",
+            "text": "I'm from Seattle"
+        },
+        {
+            "title": "Specific team",
+            "text": "Tell me about the Timberwolves"
+        }
+    ]
+}

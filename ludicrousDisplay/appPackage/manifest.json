@@ -1,0 +1,39 @@
+{
+    "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.19/MicrosoftTeams.schema.json",
+    "manifestVersion": "1.19",
+    "version": "1.0.0",
+    "id": "${{TEAMS_APP_ID}}",
+    "developer": {
+        "name": "Tomorrow's Blueprint",
+        "websiteUrl": "https://www.abramjackson.com",
+        "privacyUrl": "https://www.abramjackson.com/privacy",
+        "termsOfUseUrl": "https://www.abramjackson.com/privacy"
+    },
+    "icons": {
+        "color": "Ludicrous.png",
+        "outline": "outlines.png"
+    },
+    "name": {
+        "short": "Ludicrous Display${{APP_NAME_SUFFIX}}",
+        "full": "Ludicrous Display"
+    },
+    "description": {
+        "short": "Helps you talk about your local sportsball teams",
+        "full": "Ludicrous Display is your partner to be able to talk with your friends and coworkers about the sports they like so much. Fit right in with insightful and timely commentary that will make you the star of the water cooler!"
+    },
+    "accentColor": "#FFFFFF",
+    "composeExtensions": [],
+    "permissions": [
+        "identity",
+        "messageTeamMembers"
+    ],
+    "copilotAgents": {
+        "declarativeAgents": [            
+            {
+                "id": "declarativeAgent",
+                "file": "declarativeAgent.json"
+            }
+        ]
+    },
+    "validDomains": []
+}

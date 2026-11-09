@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Write a skill. Just ask. - Microsoft Copilot</title>
+<style>html,body{margin:0;background:#f3f2fa;overflow:hidden}canvas{display:block}</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script src="timeline.js"></script>
+<script>
+const W = 1920, H = 1080;
+const { WIN, SCENES, TOTAL, UI_START, UI_END, DISSOLVE, CHAPTERS, localToSrc, fastRuns } = TL;
+const DISPLAY = '"Segoe UI Variable Display","Segoe UI",sans-serif';
+const TEXT = '"Segoe UI Variable Text","Segoe UI",sans-serif';
+const P = { cyan: '#2BC4E3', blue: '#2D6BF0', violet: '#7B5CF5', magenta: '#D94FB0', coral: '#F2665B', amber: '#FFB547' };
+const INK = '#16142b', BODY = '#4a4a5e', MUTED = '#6d6c80';
+const RING = [P.cyan, P.blue, P.violet, P.magenta];
+const DEEP = [P.blue, P.violet, P.magenta];
+const copilotLogo = new Image();
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+const srcA = mk(1920, 1080), srcB = mk(1920, 1080);
+const layA = mk(WIN.w, WIN.h), layB = mk(WIN.w, WIN.h);
+const scratch = mk(1000, 700), grain = mk(256, 256);
+
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const ramp = (t, a, b) => clamp((t - a) / (b - a));
+const inOut = t => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+const outC = t => 1 - (1 - t) ** 3;
+const outQ = t => 1 - (1 - t) ** 5;
+
+let framesBySource = {};
+const cache = new Map();
+const diagnostics = [];
+function diag(key, info) { if (!diagnostics.some(d => d.key === key)) diagnostics.push({ key, ...info }); }
+
+(function makeGrain() {
+  const g = grain.getContext('2d'), img = g.createImageData(256, 256);
+  let s = 1234567;
+  for (let i = 0; i < img.data.length; i += 4) {
+    s = (s * 1103515245 + 12345) & 0x7fffffff;
+    const v = s / 0x7fffffff;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = v > 0.5 ? 255 : 0;
+    img.data[i + 3] = Math.floor(Math.abs(v - 0.5) * 2 * 255);
+  }
+  g.putImageData(img, 0, 0);
+})();
+let grainPattern = null;
+function drawGrain(a) {
+  grainPattern = grainPattern || ctx.createPattern(grain, 'repeat');
+  ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = grainPattern; ctx.fillRect(0, 0, W, H); ctx.restore();
+}
+function rr(c, x, y, w, h, r) { c.beginPath(); c.roundRect(x, y, w, h, r); }
+function linear(c, x, y, w, h, colors) {
+  const g = c.createLinearGradient(x, y, x + w, y + h);
+  colors.forEach((col, i) => g.addColorStop(i / (colors.length - 1), col));
+  return g;
+}
+function blob(x, y, r, color) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, color);
+  g.addColorStop(1, color.replace(/[\d.]+\)$/, '0)'));
+  ctx.fillStyle = g; ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
+}
+
+// ---------- stage and vivid cards ----------
+function stage(t) {
+  const d = (p, a) => Math.sin(t * 0.11 + p) * a;
+  ctx.fillStyle = '#F3F2FA'; ctx.fillRect(0, 0, W, H);
+  blob(160 + d(0, 90), 140 + d(1, 60), 820, 'rgba(43,196,227,.42)');
+  blob(1780 + d(2, 80), 120 + d(3, 70), 760, 'rgba(45,107,240,.30)');
+  blob(1720 + d(4, 90), 980 + d(5, 60), 820, 'rgba(123,92,245,.32)');
+  blob(220 + d(6, 80), 1000 + d(7, 60), 760, 'rgba(217,79,176,.28)');
+  blob(960 + d(8, 140), 1180, 700, 'rgba(242,102,91,.22)');
+  blob(1000 + d(9, 200), -120, 640, 'rgba(255,181,71,.30)');
+  drawGrain(0.035);
+}
+function vivid(t, alpha) {
+  if (alpha <= 0) return;
+  const d = (p, a) => Math.sin(t * 0.32 + p) * a;
+  ctx.save(); ctx.globalAlpha = alpha;
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, '#2D6BF0'); g.addColorStop(0.55, '#6B4EF2'); g.addColorStop(1, '#C84AB4');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  blob(120 + d(0, 70), 80 + d(1, 50), 980, 'rgba(43,196,227,.95)');
+  blob(1820 + d(2, 60), 60, 820, 'rgba(45,107,240,.85)');
+  blob(1880 + d(3, 60), 1000 + d(4, 50), 900, 'rgba(217,79,176,.9)');
+  blob(160 + d(5, 80), 1120, 820, 'rgba(255,181,71,.85)');
+  blob(760 + d(6, 120), 1220, 620, 'rgba(242,102,91,.7)');
+  blob(1000 + d(7, 90), 520 + d(8, 40), 760, 'rgba(123,92,245,.55)');
+  const v = ctx.createRadialGradient(960, 540, 0, 960, 540, 900);
+  v.addColorStop(0, 'rgba(24,10,70,.30)'); v.addColorStop(1, 'rgba(24,10,70,0)');
+  ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+  drawGrain(0.05);
+  ctx.restore();
+}
+function copilotMark(x, y, size) {
+  ctx.save();
+  ctx.shadowColor = 'transparent';
+  ctx.drawImage(copilotLogo, x - size / 2, y - size / 2, size, size);
+  ctx.restore();
+}
+function setFont(size, weight, family) { ctx.font = `${weight} ${size}px ${family}`; }
+function riseText(value, x, y, size, weight, color, u, delay, family = TEXT, align = 'center') {
+  const a = outC(ramp(u, delay, delay + 0.7));
+  if (a <= 0) return;
+  ctx.save(); ctx.globalAlpha *= a;
+  setFont(size, weight, family); ctx.textAlign = align; ctx.fillStyle = color;
+  ctx.fillText(value, x, y + 26 * (1 - a));
+  ctx.restore();
+}
+function wordsText(value, cx, y, size, weight, color, u, delay, stagger = 0.07, family = DISPLAY) {
+  setFont(size, weight, family);
+  const words = value.split(' ');
+  const space = ctx.measureText(' ').width;
+  const widths = words.map(w => ctx.measureText(w).width);
+  const total = widths.reduce((a, b) => a + b, 0) + space * (words.length - 1);
+  let x = cx - total / 2;
+  words.forEach((word, i) => {
+    const a = outQ(ramp(u, delay + i * stagger, delay + i * stagger + 0.75));
+    if (a > 0) {
+      ctx.save(); ctx.globalAlpha *= a; ctx.textAlign = 'left'; ctx.fillStyle = color;
+      ctx.fillText(word, x, y + 40 * (1 - a));
+      ctx.restore();
+    }
+    x += widths[i] + space;
+  });
+}
+function brandRow(cx, y, u, delay) {
+  const a = outC(ramp(u, delay, delay + 0.7));
+  if (a <= 0) return;
+  ctx.save(); ctx.globalAlpha *= a;
+  setFont(32, 600, DISPLAY);
+  const label = 'Microsoft Copilot', tw = ctx.measureText(label).width;
+  const x0 = cx - (44 + 16 + tw) / 2, yy = y + 20 * (1 - a);
+  copilotMark(x0 + 22, yy - 11, 48);
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText(label, x0 + 60, yy);
+  ctx.restore();
+}
+function vividPill(label, cx, y, u, delay, size = 25, dot = true) {
+  const a = outC(ramp(u, delay, delay + 0.7));
+  if (a <= 0) return;
+  ctx.save(); ctx.globalAlpha *= a;
+  setFont(size, 600, TEXT);
+  const tw = ctx.measureText(label).width, h = size + 30, w = tw + (dot ? 74 : 56);
+  const x = cx - w / 2, yy = y + 18 * (1 - a);
+  ctx.shadowColor = 'transparent';
+  ctx.fillStyle = 'rgba(255,255,255,.16)'; rr(ctx, x, yy, w, h, h / 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1.5; rr(ctx, x + 0.75, yy + 0.75, w - 1.5, h - 1.5, h / 2); ctx.stroke();
+  let tx = x + 28;
+  if (dot) {
+    ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(255,255,255,.9)'; ctx.shadowBlur = 12;
+    ctx.beginPath(); ctx.arc(x + 30, yy + h / 2, 6, 0, 2 * Math.PI); ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent'; tx = x + 48;
+  }
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText(label, tx, yy + h / 2 + size * 0.36);
+  ctx.restore();
+}
+function titleText(t) {
+  const exit = ramp(t, 2.3, 2.8);
+  if (exit >= 1) return;
+  ctx.save(); ctx.globalAlpha = 1 - exit; ctx.translate(0, -30 * outC(exit));
+  ctx.shadowColor = 'rgba(25,10,80,.28)'; ctx.shadowBlur = 30;
+  brandRow(960, 318, t, 0.12);
+  wordsText('Write a skill.', 960, 505, 136, 600, '#fff', t, 0.3);
+  wordsText('Just ask.', 960, 650, 136, 600, '#fff', t, 0.55);
+  ctx.shadowBlur = 20;
+  riseText('Describe what you need. Copilot writes the skill for your agent.', 960, 745, 34, 400, 'rgba(255,255,255,.94)', t, 0.85);
+  vividPill('Now available worldwide', 960, 800, t, 1.1);
+  ctx.restore();
+}
+function endText(t) {
+  const u = t - (UI_END + 0.3);
+  if (u < 0) return;
+  ctx.save(); ctx.shadowColor = 'rgba(25,10,80,.28)'; ctx.shadowBlur = 30;
+  brandRow(960, 352, u, 0);
+  wordsText('Write a skill. Just ask.', 960, 520, 108, 600, '#fff', u, 0.15, 0.08);
+  ctx.shadowBlur = 20;
+  riseText('Skills, authored by conversation. Now available worldwide.', 960, 612, 36, 400, 'rgba(255,255,255,.94)', u, 0.7);
+  vividPill('Try it: create an agent, then say “write a skill to…”', 960, 680, u, 1.05, 26, false);
+  ctx.restore();
+}
+
+// ---------- source frames ----------
+function frameIndexAt(raw, frames) {
+  let lo = 0, hi = frames.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (frames[mid] <= raw) lo = mid; else hi = mid - 1;
+  }
+  return lo;
+}
+function loadImage(raw, source) {
+  const i = frameIndexAt(raw, framesBySource[source]);
+  const key = `${source}:${i}`;
+  if (cache.has(key)) return cache.get(key);
+  const promise = new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error(`Missing ${source} frame ${i}`));
+    image.src = `../${source}/frames/${String(i).padStart(6, '0')}.jpg`;
+  });
+  cache.set(key, promise);
+  if (cache.size > 24) cache.delete(cache.keys().next().value);
+  return promise;
+}
+// Privacy and focus treatments in source pixels. Returns the drawable for this frame.
+function processSource(image, scene, src, cv, u) {
+  const masks = [];
+  const sf = scene.soften;
+  if (sf) {
+    const a = inOut(clamp((u - sf.u0) / (sf.u1 - sf.u0)));
+    if (a > 0.001) masks.push({ path: c => c.rect(...sf.rect), blur: sf.blur, wash: sf.wash, alpha: a });
+  }
+  if (!scene.source || scene.source === 'take3') {
+    if (src < 34.9) masks.push({ path: c => c.rect(0, 470, 262, 610), blur: 9 });
+    if (src < 9.0) masks.push({ path: c => c.rect(740, 510, 712, 100), blur: 10 });
+  }
+  const f = scene.focus;
+  const hole = f ? c => { c.rect(0, 0, 1920, 1080); c.roundRect(f[0], f[1], f[2], f[3], f[4] ?? 16); } : null;
+  if (scene.hidePreview) {
+    masks.push({ path: c => c.rect(712, 0, 1208, 1080), hole, blur: 22, wash: 'rgba(244,243,251,.62)' });
+  }
+  if (f) masks.push({ path: c => c.rect(0, 0, 712, 1080), hole, blur: 5 });
+  if (!masks.length && image.naturalWidth === 1920 && image.naturalHeight === 1080) return image;
+  const c = cv.getContext('2d');
+  c.filter = 'none'; c.drawImage(image, 0, 0, 1920, 1080);
+  for (const m of masks) {
+    c.save(); c.beginPath(); m.path(c); c.clip('evenodd');
+    if (m.hole) { c.beginPath(); m.hole(c); c.clip('evenodd'); }
+    c.globalAlpha = m.alpha ?? 1;
+    c.filter = `blur(${m.blur}px)`; c.drawImage(image, 0, 0, 1920, 1080); c.filter = 'none';
+    if (m.wash) { c.fillStyle = m.wash; c.fillRect(0, 0, 1920, 1080); }
+    c.restore();
+  }
+  return cv;
+}
+function camRect(cx, cy, s) {
+  s = Math.max(s, WIN.w / 1920);
+  const w = WIN.w / s, h = WIN.h / s;
+  return { x: clamp(cx - w / 2, 0, 1920 - w), y: clamp(cy - h / 2, 0, 1080 - h), w, h };
+}
+function cameraAt(scene, u) {
+  const k = scene.cam;
+  if (u <= k[0][0]) return camRect(k[0][1], k[0][2], k[0][3]);
+  for (let i = 1; i < k.length; i++) {
+    if (u <= k[i][0]) {
+      const a = k[i - 1], b = k[i];
+      const e = inOut(clamp((u - a[0]) / (b[0] - a[0] || 1)));
+      const ra = camRect(a[1], a[2], a[3]), rb = camRect(b[1], b[2], b[3]);
+      const w = Math.exp(lerp(Math.log(ra.w), Math.log(rb.w), e)), h = w * WIN.h / WIN.w;
+      const cx = lerp(ra.x + ra.w / 2, rb.x + rb.w / 2, e), cy = lerp(ra.y + ra.h / 2, rb.y + rb.h / 2, e);
+      return { x: clamp(cx - w / 2, 0, 1920 - w), y: clamp(cy - h / 2, 0, 1080 - h), w, h };
+    }
+  }
+  const z = k[k.length - 1];
+  return camRect(z[1], z[2], z[3]);
+}
+
+// ---------- in-window overlays ----------
+function drawLabel(L, label, x, y, w, h, side, alpha, slide, sceneId) {
+  L.save();
+  L.font = `600 21px ${TEXT}`;
+  const tw = L.measureText(label).width, lw = tw + 60, lh = 42;
+  const top = side.startsWith('top');
+  let lx = side === 'topR' ? x + w - lw : x;
+  let ly = top ? y - lh - 12 : y + h + 12;
+  ly += (top ? 10 : -10) * (1 - slide);
+  const cx = clamp(lx, 14, WIN.w - 14 - lw), cy = clamp(ly, 14, WIN.h - 14 - lh);
+  if (Math.abs(cx - lx) > 40 || Math.abs(cy - ly) > 40) diag(`label-clamped:${sceneId}:${label}`, { lx, ly, cx, cy });
+  L.globalAlpha = alpha;
+  L.shadowColor = 'rgba(20,10,60,.32)'; L.shadowBlur = 18; L.shadowOffsetY = 6;
+  L.fillStyle = 'rgba(23,20,46,.94)'; rr(L, cx, cy, lw, lh, lh / 2); L.fill();
+  L.shadowColor = 'transparent';
+  L.fillStyle = linear(L, cx + 16, cy + 15, 12, 12, [P.cyan, P.violet, P.magenta]);
+  L.beginPath(); L.arc(cx + 23, cy + lh / 2, 6, 0, 2 * Math.PI); L.fill();
+  L.fillStyle = '#fff'; L.textAlign = 'left'; L.fillText(label, cx + 39, cy + 28.5);
+  L.restore();
+}
+function drawCallout(L, c, u, map, scene) {
+  if (u < c.u0 || u > c.u1 + 0.05) return;
+  const p = outC(ramp(u, c.u0, c.u0 + 0.65));
+  const a = 1 - ramp(u, c.u1 - 0.3, c.u1);
+  if (a <= 0) return;
+  let [x, y, w, h] = map(c.rect);
+  const pad = 10, r = 16;
+  x -= pad; y -= pad; w += 2 * pad; h += 2 * pad;
+  if (c.dim) {
+    L.save(); L.globalAlpha = a * outC(ramp(u, c.u0, c.u0 + 0.5));
+    L.fillStyle = 'rgba(20,16,48,.30)';
+    L.beginPath(); L.rect(0, 0, WIN.w, WIN.h); L.roundRect(x, y, w, h, r); L.fill('evenodd');
+    L.restore();
+  }
+  const grad = linear(L, x, y, w, h, RING);
+  L.save(); L.globalAlpha = a;
+  const per = 2 * (w + h) - (8 - 2 * Math.PI) * r;
+  L.setLineDash([per * p, per + 10]); L.lineWidth = 4; L.lineCap = 'round';
+  L.strokeStyle = grad; L.shadowColor = 'rgba(123,92,245,.55)'; L.shadowBlur = 18;
+  rr(L, x, y, w, h, r); L.stroke();
+  L.restore();
+  if (c.pulse) {
+    const ph = ((u - c.u0) % 1.15) / 1.15, g = ph * 28;
+    L.save(); L.globalAlpha = a * p * (1 - ph) * 0.75; L.lineWidth = 3; L.strokeStyle = grad;
+    rr(L, x - g, y - g, w + 2 * g, h + 2 * g, r + g); L.stroke(); L.restore();
+  }
+  if (c.label) {
+    const s = outC(ramp(u, c.u0 + 0.3, c.u0 + 0.8));
+    if (s > 0) drawLabel(L, c.label, x, y, w, h, c.side || 'bottom', a * s, s, scene.id);
+  }
+}
+function drawSpeedChip(L, scene, u) {
+  for (const { u0, u1, speed: sp } of fastRuns(scene)) {
+    const d = u1 - u0;
+    if (u >= u0 && u <= u1) {
+      const al = Math.min(ramp(u, u0, u0 + 0.25), 1 - ramp(u, u0 + d - 0.25, u0 + d));
+      if (al > 0) {
+        L.save(); L.globalAlpha = al;
+        L.font = `600 19px ${TEXT}`;
+        const label = `${sp}× speed`, tw = L.measureText(label).width, w = tw + 66, h = 40;
+        const x = WIN.w - 26 - w, y = 24;
+        L.shadowColor = 'rgba(20,10,60,.3)'; L.shadowBlur = 16; L.shadowOffsetY = 5;
+        L.fillStyle = 'rgba(23,20,46,.9)'; rr(L, x, y, w, h, h / 2); L.fill();
+        L.shadowColor = 'transparent';
+        for (let i = 0; i < 2; i++) {
+          const k = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(u * 9 - i * 1.4));
+          L.globalAlpha = al * k;
+          L.fillStyle = linear(L, x + 16, y + 12, 22, 16, [P.cyan, P.violet]);
+          const tx = x + 17 + i * 11;
+          L.beginPath(); L.moveTo(tx, y + 13); L.lineTo(tx + 10, y + 20); L.lineTo(tx, y + 27); L.closePath(); L.fill();
+        }
+        L.globalAlpha = al; L.fillStyle = '#fff'; L.textAlign = 'left';
+        L.fillText(label, x + 46, y + 26.5);
+        L.restore();
+      }
+    }
+  }
+}
+async function renderLayer(scene, u, srcCv, lay) {
+  const { src } = localToSrc(scene, u);
+  const image = await loadImage(src, scene.source || 'take3');
+  const drawable = processSource(image, scene, src, srcCv, u);
+  const cam = cameraAt(scene, u);
+  const L = lay.getContext('2d');
+  L.save();
+  L.imageSmoothingEnabled = true; L.imageSmoothingQuality = 'high';
+  L.drawImage(drawable, cam.x, cam.y, cam.w, cam.h, 0, 0, WIN.w, WIN.h);
+  const k = WIN.w / cam.w;
+  const map = r => [(r[0] - cam.x) * k, (r[1] - cam.y) * k, r[2] * k, r[3] * k];
+  for (const c of scene.callouts || []) drawCallout(L, c, u, map, scene);
+  drawSpeedChip(L, scene, u);
+  L.restore();
+}
+function sceneIndexAt(t) {
+  for (let i = SCENES.length - 1; i >= 0; i--) if (t >= SCENES[i].start) return i;
+  return 0;
+}
+async function renderWindow(t) {
+  const i = sceneIndexAt(t);
+  let prev = null, next = null, mix = 0;
+  for (let j = 1; j < SCENES.length; j++) {
+    const s = SCENES[j];
+    if (s.join === 'dissolve' && t >= s.start - DISSOLVE / 2 && t < s.start + DISSOLVE / 2) {
+      prev = SCENES[j - 1]; next = s; mix = inOut(ramp(t, s.start - DISSOLVE / 2, s.start + DISSOLVE / 2));
+    }
+  }
+  if (!prev) {
+    const s = SCENES[i];
+    await renderLayer(s, clamp(t - s.start, 0, s.dur), srcA, layA);
+    return;
+  }
+  await renderLayer(prev, clamp(t - prev.start, 0, prev.dur), srcA, layA);
+  await renderLayer(next, clamp(t - next.start, 0, next.dur), srcB, layB);
+  const L = layA.getContext('2d');
+  L.save(); L.globalAlpha = mix; L.drawImage(layB, 0, 0); L.restore();
+}
+async function drawWindow(t) {
+  const enter = outQ(ramp(t, 2.5, 3.6));
+  const exit = inOut(ramp(t, UI_END - 0.4, UI_END + 0.35));
+  if (enter <= 0 || exit >= 1) return;
+  await renderWindow(t);
+  const alpha = Math.min(1, enter * 1.8) * (1 - exit);
+  const scale = lerp(0.93, 1, enter) * lerp(1, 0.94, exit);
+  const dy = lerp(760, 0, enter) + lerp(0, -16, exit);
+  const cx = WIN.x + WIN.w / 2, cy = WIN.y + WIN.h / 2;
+  ctx.save(); ctx.globalAlpha = alpha;
+  ctx.translate(cx, cy + dy); ctx.scale(scale, scale); ctx.translate(-cx, -cy);
+  ctx.save();
+  ctx.shadowColor = 'rgba(60,40,140,.28)'; ctx.shadowBlur = 70; ctx.shadowOffsetY = 28;
+  ctx.fillStyle = '#fff'; rr(ctx, WIN.x, WIN.y, WIN.w, WIN.h, WIN.r); ctx.fill();
+  ctx.restore();
+  ctx.save(); rr(ctx, WIN.x, WIN.y, WIN.w, WIN.h, WIN.r); ctx.clip();
+  ctx.drawImage(layA, WIN.x, WIN.y);
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(40,30,100,.16)'; ctx.lineWidth = 1;
+  rr(ctx, WIN.x + 0.5, WIN.y + 0.5, WIN.w - 1, WIN.h - 1, WIN.r); ctx.stroke();
+  ctx.restore();
+}
+
+// ---------- captions ----------
+const RUNS = [];
+for (const s of SCENES) {
+  const last = RUNS[RUNS.length - 1];
+  if (last && last.id === s.caption.id) last.end = s.start + s.dur;
+  else RUNS.push({ id: s.caption.id, cap: s.caption, start: s.start, end: s.start + s.dur });
+}
+RUNS[0].start = UI_START + 0.45;
+function wrap(value, width) {
+  const words = value.split(' '), lines = [];
+  let line = '';
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w;
+    if (ctx.measureText(test).width > width && line) { lines.push(line); line = w; } else line = test;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+function layoutCaption(cap) {
+  const w = (cap.anchor && cap.anchor.w) || 500, padL = 42, padR = 34, inner = w - padL - padR;
+  setFont(22, 400, TEXT);
+  const body = wrap(cap.body, inner);
+  let size = 52;
+  setFont(size, 600, DISPLAY);
+  const widest = Math.max(...cap.lines.map(l => ctx.measureText(l).width));
+  if (widest > inner) size = Math.floor(size * inner / widest);
+  const h = 28 + 14 + 62 + 56 + 44 + 31 * (body.length - 1) + 9 + 28;
+  let x, y;
+  const a = cap.anchor, m = 34;
+  if (a === 'bl') { x = WIN.x + m; y = WIN.y + WIN.h - m - h; }
+  else if (a === 'tl') { x = WIN.x + m; y = WIN.y + m; }
+  else if (a === 'br') { x = WIN.x + WIN.w - m - w; y = WIN.y + WIN.h - m - h; }
+  else if (a === 'tr') { x = WIN.x + WIN.w - m - w; y = WIN.y + m; }
+  else { x = a.x; y = a.y; }
+  return { x, y, w, h, padL, inner, body, size };
+}
+function drawCaption(run, t, outAlpha) {
+  const cap = run.cap, u = t - (run.start + 0.12);
+  if (u < 0 || outAlpha <= 0) return;
+  const lay = layoutCaption(cap);
+  const cardA = outQ(ramp(u, 0, 0.5)) * outAlpha;
+  if (cardA <= 0) return;
+  const x = lay.x, y = lay.y + 16 * (1 - outQ(ramp(u, 0, 0.5))), w = lay.w, h = lay.h;
+  const pad = 44;
+  const sx = Math.max(0, x - pad), sy = Math.max(0, y - pad);
+  const sw = Math.min(W, x + w + pad) - sx, sh = Math.min(H, y + h + pad) - sy;
+  const sc = scratch.getContext('2d');
+  sc.clearRect(0, 0, scratch.width, scratch.height);
+  sc.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+  ctx.save(); ctx.globalAlpha = cardA;
+  ctx.save();
+  ctx.shadowColor = 'rgba(40,24,110,.24)'; ctx.shadowBlur = 50; ctx.shadowOffsetY = 18;
+  ctx.fillStyle = 'rgba(255,255,255,.9)'; rr(ctx, x, y, w, h, 22); ctx.fill();
+  ctx.restore();
+  ctx.save(); rr(ctx, x, y, w, h, 22); ctx.clip();
+  ctx.filter = 'blur(22px)'; ctx.drawImage(scratch, 0, 0, sw, sh, sx, sy, sw, sh); ctx.filter = 'none';
+  ctx.fillStyle = 'rgba(255,255,255,.80)'; ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = linear(ctx, x, y, 0, h, RING); ctx.fillRect(x, y, 6, h);
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 1.5; rr(ctx, x + 0.75, y + 0.75, w - 1.5, h - 1.5, 22); ctx.stroke();
+  ctx.strokeStyle = 'rgba(40,30,100,.10)'; ctx.lineWidth = 1; rr(ctx, x - 0.5, y - 0.5, w + 1, h + 1, 23); ctx.stroke();
+
+  const tx = x + lay.padL;
+  const eb = y + 28 + 14;
+  const ea = outC(ramp(u, 0.12, 0.6));
+  ctx.save(); ctx.globalAlpha *= ea;
+  ctx.textAlign = 'left';
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '2.4px';
+  setFont(15, 700, TEXT);
+  const num = cap.number, label = cap.eyebrow.toUpperCase();
+  const nw = ctx.measureText(num).width;
+  ctx.fillStyle = linear(ctx, tx, 0, nw, 0, DEEP); ctx.fillText(num, tx, eb);
+  ctx.fillStyle = 'rgba(80,76,110,.45)'; ctx.fillRect(tx + nw + 12, eb - 6, 18, 2);
+  ctx.fillStyle = '#5b5873'; ctx.fillText(label, tx + nw + 42, eb);
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+  ctx.restore();
+
+  setFont(lay.size, 600, DISPLAY);
+  const space = ctx.measureText(' ').width;
+  let wordIndex = 0;
+  cap.lines.forEach((line, li) => {
+    const base = eb + 62 + li * 56;
+    const lw = ctx.measureText(line).width;
+    if (lw > lay.inner + 1) diag(`headline:${cap.id}:${line}`, { lw, inner: lay.inner });
+    const fill = li === 1 ? linear(ctx, tx, 0, lw, 0, DEEP) : INK;
+    let wx = tx;
+    for (const word of line.split(' ')) {
+      const d = 0.2 + wordIndex * 0.06;
+      const wa = outQ(ramp(u, d, d + 0.6));
+      const ww = ctx.measureText(word).width;
+      if (wa > 0) {
+        ctx.save(); ctx.globalAlpha *= wa; ctx.fillStyle = fill; ctx.textAlign = 'left';
+        ctx.fillText(word, wx, base + 22 * (1 - wa));
+        ctx.restore();
+      }
+      wx += ww + space; wordIndex++;
+    }
+  });
+  const ba = outC(ramp(u, 0.55, 1.05));
+  if (ba > 0) {
+    ctx.save(); ctx.globalAlpha *= ba; setFont(22, 400, TEXT); ctx.fillStyle = BODY; ctx.textAlign = 'left';
+    lay.body.forEach((line, i) => ctx.fillText(line, tx, eb + 62 + 56 + 44 + i * 31 + 10 * (1 - ba)));
+    ctx.restore();
+  }
+  ctx.restore();
+}
+function captions(t) {
+  const last = RUNS.length - 1;
+  RUNS.forEach((run, i) => {
+    if (t < run.start || t > run.end + 0.2) return;
+    const outA = i === last ? 1 - ramp(t, UI_END - 0.75, UI_END - 0.35) : 1 - ramp(t, run.end - 0.2, run.end + 0.1);
+    drawCaption(run, t, outA);
+  });
+}
+
+// ---------- footer ----------
+const CH = CHAPTERS.map((name, c) => {
+  const ss = SCENES.filter(s => s.chapter === c);
+  return { name, a: ss[0].start, b: ss[ss.length - 1].start + ss[ss.length - 1].dur };
+});
+function footer(t) {
+  const alpha = Math.min(ramp(t, 3.0, 3.7), 1 - ramp(t, UI_END - 0.6, UI_END - 0.1));
+  if (alpha <= 0) return;
+  ctx.save(); ctx.globalAlpha = alpha;
+  const y = 1022;
+  copilotMark(WIN.x + 13, y - 1, 32);
+  setFont(21, 600, DISPLAY); ctx.fillStyle = INK; ctx.textAlign = 'left';
+  ctx.fillText('Microsoft Copilot', WIN.x + 36, y + 7);
+  const iw = 150, gap = 26, total = CH.length * iw + (CH.length - 1) * gap;
+  let x = 960 - total / 2;
+  for (const ch of CH) {
+    const f = clamp((t - ch.a) / (ch.b - ch.a));
+    const active = t >= ch.a && t < ch.b;
+    setFont(16, 600, TEXT);
+    ctx.fillStyle = active ? INK : f >= 1 ? '#5b5873' : 'rgba(91,88,115,.55)';
+    ctx.fillText(ch.name, x, y - 6);
+    ctx.fillStyle = 'rgba(40,30,100,.12)'; rr(ctx, x, y + 6, iw, 4, 2); ctx.fill();
+    if (f > 0) { ctx.fillStyle = linear(ctx, x, 0, iw, 0, RING); rr(ctx, x, y + 6, Math.max(4, iw * f), 4, 2); ctx.fill(); }
+    x += iw + gap;
+  }
+  setFont(16, 400, TEXT); ctx.fillStyle = MUTED; ctx.textAlign = 'right';
+  ctx.fillText('Real product UI  ·  Edited for time', WIN.x + WIN.w, y + 6);
+  ctx.restore();
+}
+
+// ---------- frame ----------
+async function drawFrame(t) {
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.filter = 'none';
+  stage(t);
+  if (t < 4.0) vivid(t, 1 - inOut(ramp(t, 2.85, 3.85)));
+  if (t < 2.85) titleText(t);
+  await drawWindow(t);
+  footer(t);
+  captions(t);
+  if (t > UI_END - 0.6) {
+    vivid(t, inOut(ramp(t, UI_END - 0.5, UI_END + 0.4)));
+    endText(t);
+  }
+  ctx.restore();
+}
+window.init = async inputFrames => {
+  framesBySource = inputFrames;
+  copilotLogo.src = 'assets/microsoft-copilot.svg';
+  await Promise.all([
+    copilotLogo.decode(),
+    document.fonts.load(`600 52px ${DISPLAY}`), document.fonts.load(`400 22px ${TEXT}`), document.fonts.load(`600 21px ${TEXT}`),
+  ]);
+  return TOTAL;
+};
+window.drawFrame = drawFrame;
+window.getDiagnostics = () => diagnostics;
+</script>
+</body>
+</html>

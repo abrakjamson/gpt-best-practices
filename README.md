@@ -3,3 +3,6 @@ This repository is about learning and documenting best practices to make GPTs wi
 
 # Dungeon Crawler
 The dungeon crawler example is the most complicated rule-following I have seen implemented in a GPT, developed over dozens of iterations and playthroughs. It shows how to use Markdown in instructions, accessing structured data from JSON, and generating images along a theme.
+
+# ux-demo-video
+This is a Skill I use in GitHub Copilot App on Windows to create nice demo videos of Microsoft Copilot features. With Opus 5.5, it can cost a few thousand credits to create and iterate on a video.
